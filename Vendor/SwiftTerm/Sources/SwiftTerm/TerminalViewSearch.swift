@@ -1,0 +1,202 @@
+//
+//  TerminalViewSearch.swift
+//  SwiftTerm
+//
+//  Search integration for TerminalView.
+//
+
+#if !SWIFTTERM_EMBEDDED
+#if os(macOS) || os(iOS) || os(visionOS)
+import Foundation
+
+extension TerminalView {
+    /// Search and selection state are guarded by `terminal.terminalLock`;
+    /// public entry points acquire it before touching that state.
+    /// Finds the next match for `term`, selects it, and optionally scrolls it into view.
+    /// - Parameters:
+    ///   - term: The search term.
+    ///   - options: Search options (case sensitivity, regex, whole word).
+    ///   - scrollToResult: Whether to scroll the result into view.
+    /// - Returns: `true` if a match was found.
+    @discardableResult
+    public func findNext (_ term: String, options: SearchOptions = SearchOptions(), scrollToResult: Bool = true) -> Bool {
+        let resultRow: Int? = withTerminal { _ in
+            guard let search = search, let selection = selection else {
+                return nil
+            }
+
+            search.updateLastSelection(currentSearchSelection(selection))
+            if let result = search.findNext(term: term, options: options) {
+                return applySearchResultLocked(result, selection: selection)
+            }
+
+            selection.selectNone()
+            return nil
+        }
+        if let resultRow {
+            if scrollToResult {
+                scrollToReveal(row: resultRow)
+            }
+            return true
+        }
+        return false
+    }
+
+    /// Finds the previous match for `term`, selects it, and optionally scrolls it into view.
+    /// - Parameters:
+    ///   - term: The search term.
+    ///   - options: Search options (case sensitivity, regex, whole word).
+    ///   - scrollToResult: Whether to scroll the result into view.
+    /// - Returns: `true` if a match was found.
+    @discardableResult
+    public func findPrevious (_ term: String, options: SearchOptions = SearchOptions(), scrollToResult: Bool = true) -> Bool {
+        let resultRow: Int? = withTerminal { _ in
+            guard let search = search, let selection = selection else {
+                return nil
+            }
+
+            search.updateLastSelection(currentSearchSelection(selection))
+            if let result = search.findPrevious(term: term, options: options) {
+                return applySearchResultLocked(result, selection: selection)
+            }
+
+            selection.selectNone()
+            return nil
+        }
+        if let resultRow {
+            if scrollToResult {
+                scrollToReveal(row: resultRow)
+            }
+            return true
+        }
+        return false
+    }
+
+
+    /// Position of the current match among all matches for `term`: a 1-based
+    /// `index` (0 when there is no current match) and the `total` match count
+    /// (capped at `limit`). Drives a "2/14" style counter in a search UI.
+    public func searchMatchSummary (_ term: String, options: SearchOptions = SearchOptions(), limit: Int = 1000) -> (index: Int, total: Int) {
+        withTerminal { _ in
+            guard let search = search else {
+                return (0, 0)
+            }
+            let all = search.findAll(term: term, options: options, limit: limit)
+            guard let last = search.lastResult,
+                  let i = all.firstIndex(where: { $0.row == last.row && $0.col == last.col }) else {
+                return (0, all.count)
+            }
+            return (i + 1, all.count)
+        }
+    }
+
+    /// Clears the current search state and selection.
+    public func clearSearch () {
+        withTerminal { _ in
+            search?.reset()
+            selection?.selectNone()
+        }
+    }
+
+    // MARK: - Picoterm 扩展：高亮全部匹配
+
+    /// 为 `term` 的全部匹配建立高亮区间（缓冲区有新数据/尺寸变化时自动重算），并整屏重绘。
+    /// term 为空等价于 clearSearchHighlights。当前匹配仍由 findNext/findPrevious 的选区标出，
+    /// 绘制层选中色优先于本高亮色（WindTerm「当前匹配 + 全部标记」的双层效果）。
+    public func setSearchHighlights (term: String, options: SearchOptions = SearchOptions(), limit: Int = 2000) {
+        var computed: [Int: [ClosedRange<Int>]]? = nil
+        withTerminal { _ in
+            guard let search, !term.isEmpty else { return }
+            computed = TerminalView.computeHighlightRows(search: search, term: term,
+                                                         options: options, limit: limit)
+        }
+        if term.isEmpty {
+            searchHighlightTerm = nil
+            searchHighlightOptions = nil
+            searchHighlightRows = nil
+        } else {
+            searchHighlightTerm = term
+            searchHighlightOptions = options
+            searchHighlightLimit = limit
+            searchHighlightRows = computed
+        }
+        needsDisplay = true
+    }
+
+    /// 清除全部匹配高亮（不影响当前选区）
+    public func clearSearchHighlights () {
+        searchHighlightTerm = nil
+        searchHighlightOptions = nil
+        searchHighlightRows = nil
+        needsDisplay = true
+    }
+
+    /// findAll 结果折叠为「绝对行号 → 列区间」表（须持 terminal lock 调用）
+    static func computeHighlightRows (search: SearchService, term: String,
+                                      options: SearchOptions, limit: Int) -> [Int: [ClosedRange<Int>]] {
+        var rows: [Int: [ClosedRange<Int>]] = [:]
+        for result in search.findAll(term: term, options: options, limit: limit) {
+            let start = result.col
+            rows[result.row, default: []].append(start...(start + max(result.size, 1) - 1))
+        }
+        return rows
+    }
+
+    private func applySearchResultLocked (_ result: SearchResult, selection: SelectionService) -> Int {
+        terminal.terminalLock.preconditionLocked()
+        let range = search?.selectionRange(for: result) ?? (start: Position(col: result.col, row: result.row),
+                                                           end: Position(col: result.col, row: result.row))
+        selection.setSelection(start: range.start, end: range.end)
+        return result.row
+    }
+
+    private func currentSearchSelection (_ selection: SelectionService) -> SearchSelection? {
+        terminal.terminalLock.preconditionLocked()
+        guard selection.active else {
+            return nil
+        }
+        let start = selection.start
+        let end = selection.end
+        switch Position.compare(start, end) {
+        case .before, .equal:
+            return SearchSelection(start: start, end: end)
+        case .after:
+            return SearchSelection(start: end, end: start)
+        }
+    }
+
+    private func scrollToReveal (row: Int) {
+        let target: Int? = withTerminal { terminal in
+            let displayBuffer = terminal.displayBuffer
+            let rows = displayBuffer.rows
+            guard rows > 0 else {
+                return nil
+            }
+            if terminal.isDisplayBufferAlternate {
+                return nil
+            }
+
+            let upperVisible = displayBuffer.yDisp
+            let lowerVisible = displayBuffer.yDisp + rows - 1
+            if row >= upperVisible && row <= lowerVisible {
+                return nil
+            }
+
+            let maxScrollback = max(0, displayBuffer.lines.count - rows)
+            var target = row - rows / 2
+            if target < 0 {
+                target = 0
+            }
+            if target > maxScrollback {
+                target = maxScrollback
+            }
+            return target
+        }
+        if let target {
+            scrollTo(row: target)
+        }
+    }
+}
+#endif
+
+#endif // !SWIFTTERM_EMBEDDED
