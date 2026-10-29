@@ -1,0 +1,24 @@
+{
+  "originHash" : "f9682ce4760a53bf1138d4465156b12c8a3fdce8c185e27d1113297d2490c68c",
+  "pins" : [
+    {
+      "identity" : "libssh2-spm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AkinoKaede/libssh2-spm.git",
+      "state" : {
+        "revision" : "d211fdf8587532cd952927d9f9f3f5167ce6a77f",
+        "version" : "2.0.3"
+      }
+    },
+    {
+      "identity" : "openssl-spm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Lakr233/openssl-spm.git",
+      "state" : {
+        "revision" : "9f3b525d960fe71e534482310e96cd9c4f2faa17",
+        "version" : "3.6.2"
+      }
+    }
+  ],
+  "version" : 3
+}
