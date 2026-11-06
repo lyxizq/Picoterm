@@ -1,0 +1,200 @@
+# ``SwiftTerm``
+
+SwiftTerm is a VT100/Xterm terminal emulator library for Swift applications that
+can be embedded into macOS, iOS applications, text-based, headless applications
+or other custom scenarios.
+
+## Overview
+
+SwiftTerm provides a reusable, pluggable terminal emulation engine with platform-specific
+front-ends for AppKit (macOS) and UIKit (iOS/visionOS). The core engine handles escape
+sequence parsing, buffer management, Unicode rendering, and terminal state — while the
+view layer handles input, rendering, and platform integration.
+
+The Foundation-free portable core also supports custom hosts and WebAssembly.
+It produces owned render snapshots and accepts semantic keyboard, text, paste,
+mouse, selection, and viewport operations. The bundled `Web/` TypeScript
+package builds on that API for browsers, workers, and Node.js; its host supplies
+the renderer and process transport.
+
+For the `Embedded` and `Wasm` package traits, build requirements, and portable
+core limitations, see <doc:PortableBuilds>. For renderer and input integration,
+see <doc:PortableHosting>.
+
+The library has been used in several commercially available SSH clients, including
+[Secure Shellfish](https://apps.apple.com/us/app/secure-shellfish-ssh-files/id1336634154),
+[La Terminal](https://apps.apple.com/us/app/la-terminal-ssh-client/id1629902861),
+and [CodeEdit](https://github.com/CodeEditApp/CodeEdit).
+
+SwiftTerm uses the Swift Package Manager for its build. Add the library to your
+project by using the URL for this repository.
+
+### macOS
+
+The macOS AppKit ``TerminalView`` is a reusable `NSView` that can be connected to
+any data source by implementing ``TerminalViewDelegate``. For the common case of
+running a local Unix process, ``LocalProcessTerminalView`` connects the terminal
+to a pseudo-terminal.
+
+### iOS and visionOS
+
+The UIKit ``TerminalView`` is an embeddable `UIScrollView` subclass that uses the
+same ``TerminalViewDelegate`` protocol. Since iOS does not support local processes,
+the typical use case is connecting the terminal to a remote host via SSH.
+
+### Headless
+
+``HeadlessTerminal`` runs a local process without any UI, useful for scripting,
+testing, and screen-scraping terminal output.
+
+### Features
+
+- Unicode rendering including Emoji, combining characters, and grapheme clusters
+- Bidirectional text (Arabic, Hebrew) following the [terminal-wg BiDi recommendation](https://terminal-wg.pages.freedesktop.org/bidi/), with Arabic contextual shaping — see <doc:BiDi>
+- Colors: ANSI, 256-color, and TrueColor
+- Text attributes: bold, italic, underline, strikethrough, dim/faint, blink, inverse
+- Mouse event reporting (X10, SGR, UTF-8, URxvt protocols)
+- Terminal resizing (local and remote-initiated)
+- Hyperlink support (OSC 8)
+- Program status records (OSC 7501) — see <doc:ProgramStatus>
+- Configurable Apple view link tracking via ``LinkReporting`` (explicit OSC 8 and implicit URL detection)
+- Optional GPU-accelerated rendering via Metal (macOS, iOS, visionOS)
+- Graphics: Sixel, iTerm2-style inline images, and the Kitty graphics protocol. See <doc:KittyGraphicsIntegration>.
+- Selection and search with a built-in macOS find bar and programmable search APIs
+- Thread-safe ``Terminal`` instances
+- Terminal session recording and playback with `termcast`
+- Foundation-free portable builds for Embedded Swift and WASI WebAssembly — see <doc:PortableBuilds>
+
+## Topics
+
+### Essentials
+
+- <doc:GettingStarted>
+- ``Terminal``
+- ``TerminalOptions``
+- ``CursorStyle``
+
+### Views
+
+- <doc:Embedding>
+- <doc:AdoptingTheRenderLoop>
+- ``TerminalView``
+- ``TerminalViewDelegate``
+
+### Running Local Processes
+
+- ``LocalProcess``
+- ``LocalProcessDelegate``
+- ``LocalProcessTerminalView``
+- ``LocalProcessTerminalViewDelegate``
+
+### Headless Usage
+
+- <doc:HeadlessUsage>
+- ``HeadlessTerminal``
+
+### Portable and Web Hosts
+
+- <doc:PortableBuilds>
+- <doc:PortableHosting>
+- ``TerminalRenderSnapshot``
+- ``TerminalViewportState``
+- ``TerminalSelectionState``
+- ``TerminalMouseAction``
+- ``TerminalMouseButton``
+
+### Guides
+
+- <doc:MigratingFrom1To2>
+- <doc:GettingStarted>
+- <doc:Embedding>
+- <doc:AdoptingTheRenderLoop>
+- <doc:Customization>
+- <doc:BiDi>
+- <doc:GPURendering>
+- <doc:GraphicsSupport>
+- <doc:KittyGraphicsIntegration>
+- <doc:KittyGraphicsProtocol>
+- <doc:KittyClipboardProtocol>
+- <doc:SSHIntegration>
+- <doc:PortableBuilds>
+- <doc:PortableHosting>
+
+### Terminal Delegate
+
+- ``TerminalDelegate``
+
+### Terminal Configuration
+
+- ``TerminalOptions``
+- ``CursorStyle``
+
+### Buffer and Content Access
+
+- ``Buffer``
+- ``BufferLine``
+- ``Terminal/BufferKind``
+
+### Data Types
+
+- ``Position``
+- ``Attribute``
+- ``CharData``
+- ``CharacterStyle``
+- ``Color``
+
+### Selection and Search
+
+- <doc:Search>
+- ``SelectionService``
+- ``SearchService``
+- ``SearchOptions``
+
+### Bidirectional Text
+
+- <doc:BiDi>
+- ``BidiPresentationState``
+- ``BidiPresentationMode``
+- ``BidiSupportMode``
+- ``BidiDirection``
+- ``BidiHostPolicy``
+
+### GPU Rendering
+
+- ``MetalBufferingMode``
+- ``MetalError``
+
+### Graphics
+
+- <doc:GraphicsSupport>
+- <doc:KittyGraphicsIntegration>
+- <doc:KittyGraphicsProtocol>
+- ``KittyGraphicsConfiguration``
+- ``KittyGraphicsConfiguration/LocalMediaPolicy``
+- ``KittyGraphicsRenderSnapshot``
+- ``KittyGraphicsRenderImage``
+- ``KittyGraphicsRenderPlacement``
+- ``KittyGraphicsPixelRect``
+- ``KittyGraphicsCellGeometry``
+- ``ImageSizeRequest``
+- ``TerminalImage``
+
+### Clipboard
+
+- <doc:KittyClipboardProtocol>
+- ``KittyClipboardPolicy``
+- ``KittyClipboardCapabilities``
+- ``KittyClipboardLocation``
+- ``TerminalClipboardSnapshot``
+- ``TerminalPasteRequest``
+- ``TerminalPasteResult``
+- ``KittyClipboardWriteContent``
+- ``KittyClipboardReadResult``
+
+### Compatibility and Verification
+
+- <doc:KittyGraphicsParityMatrix>
+
+### Mouse Input
+
+- ``Terminal/MouseMode``
