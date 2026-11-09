@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Build artifacts
+*.o
+*.app
+*.dmg
+
+# Third-party reference code
+.reference/
+
+# Build outputs
+build/
+
+# 公开仓同步临时 index
+.tmp/
